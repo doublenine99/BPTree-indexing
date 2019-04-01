@@ -433,7 +433,10 @@ class BTreeIndex {
    * @param key     the key 
   **/
   int getIndexLeaf(PageId pageNo, const void* key);
+  
+  const bool BTreeIndex::inRange(int value);
 };
+
 
 
 }

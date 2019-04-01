@@ -428,14 +428,183 @@ const void BTreeIndex::startScan(const void *lowValParm,
 								 const void *highValParm,
 								 const Operator highOpParm)
 {
+
+	// TODO: If another scan is already executing, that needs to be ended here.
+	//FIXME: change to left largest
+	if ((lowOpParm != GT && lowOpParm != GTE) || (highOpParm != LT && highOpParm != LTE))
+	{
+		throw BadOpcodesException();
+	}
+	if (lowValParm > highValParm)
+	{
+		throw BadScanrangeException();
+	}
+	// set vars for scan
+	lowValInt = *(int *)lowValInt;
+	highValInt = *(int *)highValParm;
+	lowOp = lowOpParm;
+	highOp = highOpParm;
+	nextEntry = 0;
+	scanExecuting = true;
+
+	Page *root;
+	this->bufMgr->readPage(this->file, rootPageNum, root); // ???
+	this->bufMgr->unPinPage(this->file, rootPageNum, false);
+	// if root is a leaf, directly check the root's key between the range
+	if (root->page_number == 2)
+	{
+		LeafNodeInt *rootNode = (LeafNodeInt *)root;
+
+		if (highOpParm == LT && rootNode->keyArray[0] >= *(int *)highValParm ||
+			highOpParm == LTE && rootNode->keyArray[0] > *(int *)highValParm ||
+			lowOpParm == GT && rootNode->keyArray[size - 1] < *(int *)lowValParm ||
+			lowOpParm == GTE && rootNode->keyArray[size - 1] <= *(int *)lowValParm)
+		{
+			throw NoSuchKeyFoundException();
+		}
+		this->bufMgr->readPage(this->file, rootPageNum, root);
+	}
+	else // if the root if a none leaf node
+	{
+		bool reachLeaf = false;
+		NonLeafNodeInt* rootNode = (NonLeafNodeInt *)root;
+		Page *currPage = root;
+		NonLeafNodeInt *currNode = rootNode;
+		Page *lowBoundPage;
+		LeafNodeInt *lowBoundNode; // the left most leaf node contain the lower bound of the range
+
+		// find the leaf node of contains lower bound
+		while (!reachLeaf)
+		{
+			for (int i = 0; i < currNode->keyArray[size - 1]; i++)
+			{
+				// > lowVal
+				if (lowOpParm == GT && currNode->keyArray[i] > *(int *)lowValParm)
+				{
+					if (currNode->level == 1)
+					{
+						// assign the correct leaf page to be the first leaf page contain the lower bound
+						this->bufMgr->readPage(this->file, currNode->pageNoArray[i], lowBoundPage);
+						this->bufMgr->unPinPage(this->file, currNode->pageNoArray[i], false);
+						lowBoundNode = (LeafNodeInt *)lowBoundPage;
+						reachLeaf = true;
+						break;
+					}
+					// traverse to the correct child based on the keys
+					this->bufMgr->readPage(this->file, currNode->pageNoArray[i], currPage);
+					this->bufMgr->unPinPage(this->file, currNode->pageNoArray[i], false);
+					currNode = (NonLeafNodeInt *)currPage;
+					break;
+				} //>= lowVal
+				else if (lowOpParm == GTE && currNode->keyArray[i] >= *(int *)lowValParm)
+				{
+					if (currNode->level == 1)
+					{
+						this->bufMgr->readPage(this->file, currNode->pageNoArray[i], lowBoundPage);
+						this->bufMgr->unPinPage(this->file, currNode->pageNoArray[i], false);
+						lowBoundNode = (LeafNodeInt *)lowBoundPage;
+						reachLeaf = true;
+						break;
+					}
+					this->bufMgr->readPage(this->file, currNode->pageNoArray[i], currPage);
+					this->bufMgr->unPinPage(this->file, currNode->pageNoArray[i], false);
+					currNode = (NonLeafNodeInt *)currPage;
+					break;
+				}
+			}
+		}
+		if (lowBoundPage == NULL)
+		{
+			throw NoSuchKeyFoundException();
+		}
+		//TODO:
+		currentPageData = lowBoundPage;
+		currentPageNum = lowBoundPage->page_number;
+		currentPageData->page_number = currentPageNum;
+		currentPageData->next_page_number = lowBoundNode->rightSibPageNo;
+
+		// Page *satisfiedPage = lowBoundPage;
+		// LeafNodeInt *satisfiedNode = lowBoundNode;
+		// do
+		// {
+		// 	this->bufMgr->readPage(this->file, satisfiedPage->page_number, satisfiedPage); //pin the page
+		// 	if (satisfiedNode->rightSibPageNo == NULL)									   // reach the last leaf node
+		// 	{
+		// 		break;
+		// 	}
+		// 	Page *rightPage;
+		// 	this->bufMgr->readPage(this->file, satisfiedNode->rightSibPageNo, rightPage); //read the right sib
+		// 	LeafNodeInt *rightNode = (LeafNodeInt *)rightPage;
+
+		// 	// the right page satisfy the range if right page's first key < the high bound
+		// 	if (highOpParm == LT && rightNode->keyArray[0] < *(int *)highValParm)
+		// 	{
+		// 		satisfiedPage = rightPage;
+		// 		satisfiedNode = rightNode;
+		// 	}
+		// 	// the right page satisfy the range if right page's first key <= the high bound
+		// 	else if (highOpParm == LTE && rightNode->keyArray[0] <= *(int *)highValParm)
+		// 	{
+		// 		satisfiedPage = rightPage;
+		// 		satisfiedNode = rightNode;
+		// 	}
+		// 	else // unpin the right page
+		// 	{
+		// 		this->bufMgr->unPinPage(this->file, satisfiedNode->rightSibPageNo, false);
+		// 	}
+
+		// } while (true); // namespace badgerdb
+	}
 }
 
+const bool BTreeIndex::inRange(int value)
+{
+	if (lowOp == GT && highOp == LT && value > lowValInt && value < highValInt)
+		return true;
+	if (lowOp == GT && highOp == LTE && value > lowValInt && value <= highValInt)
+		return true;
+	if (lowOp == GTE && highOp == LT && value >= lowValInt && value < highValInt)
+		return true;
+	if (lowOp == GTE && highOp == LTE && value >= lowValInt && value <= highValInt)
+		return true;
+	return false;
+}
 // -----------------------------------------------------------------------------
 // BTreeIndex::scanNext
 // -----------------------------------------------------------------------------
 
 const void BTreeIndex::scanNext(RecordId &outRid)
 {
+	//TODO: how to access the first page in the buffer pool?
+	// this->bufMgr->readPage(this->file, this->bufMgr->bufPool->next_page_number, currentPageData);
+
+	// this->bufMgr->readPage(this->file, currentPageData->next_page_number, currentPageData);
+	if (scanExecuting = false)
+	{
+		throw ScanNotInitializedException();
+	}
+
+	LeafNodeInt *currNode = (LeafNodeInt *)currentPageData;
+	if (!inRange(currNode->keyArray[0]))
+	{
+		scanExecuting = false;
+		throw IndexScanCompletedException();
+	}
+	// fetch the record id if the entry match the scan
+	if (inRange(currNode->keyArray[nextEntry]))
+	{
+		outRid = currNode->ridArray[nextEntry];
+	}
+	// move to the right sibling if the current page is entirely scannned
+	if (nextEntry == leafOccupancy)
+	{
+		this->bufMgr->allocPage(this->file, currNode->rightSibPageNo, currentPageData);
+		this->bufMgr->unPinPage(this->file, currNode->rightSibPageNo, false);
+	}
+	else // move to next entry of the same page
+	{
+		nextEntry++;
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -447,3 +616,4 @@ const void BTreeIndex::endScan()
 }
 
 } // namespace badgerdb
+
