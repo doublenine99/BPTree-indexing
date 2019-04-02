@@ -547,6 +547,7 @@ const bool BTreeIndex::inRange(int value)
 
 const void BTreeIndex::scanNext(RecordId &outRid)
 {
+
 	if (scanExecuting == false || currentPageData == NULL)
 	{
 		throw ScanNotInitializedException();
@@ -566,6 +567,10 @@ const void BTreeIndex::scanNext(RecordId &outRid)
 	// move to the right sibling if the current page is entirely scannned
 	if (nextEntry == leafOccupancy - 1)
 	{
+		if (currNode->rightSibPageNo == 0) //read the last leaf node
+		{
+			throw IndexScanCompletedException();
+		}
 		this->bufMgr->allocPage(this->file, currNode->rightSibPageNo, currentPageData);
 		this->bufMgr->unPinPage(this->file, currNode->rightSibPageNo, false);
 	}
