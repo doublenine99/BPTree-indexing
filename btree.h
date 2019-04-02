@@ -399,17 +399,14 @@ class BTreeIndex {
 
   /**
    * Method to split internal nodes.
-   * @param pageToSplit   The internal node that needs to split
-   * @param key           The key in PageKeyPair to be inserted that caused this split
-   * @param pageInPair    The pageId in PageKeyPair associated with the key
   **/
-  const void splitAndInsertInternal(PageId pageToSplit, const void* key, PageId pageInPair);
+  const void splitInternal(PageId pageNo, const void* key);
 
   /**
    * Method to split the root node.
-   * Reassign the root page number. Also assign level = 1 to the new root if the root is level 1.
+   * Reassign the root page number.
   **/
-  const void splitRoot();
+  const void splitRoot(PageId pageNo, const void* key);
 
   /**
    * Method to split leaf nodes while inserting to leaves.
@@ -424,19 +421,23 @@ class BTreeIndex {
   PageId getParent(PageId childPageNo, const void* key);
 
   /**
-   * Used to find the proper index the key should appear in the key array of a given non-leaf page. Return 0 if the node is empty.
+   * Used to find the proper index the key should appear in the key array of a given non-leaf page
    * @param pageNo  the given page
    * @param key     the key 
   **/
   int getIndexNonLeaf(PageId pageNo, const void* key);
 
    /**
-   * Used to find the proper index the key should appear in the key array of a given leaf page. Return 0 if the node is empty.
+   * Used to find the proper index the key should appear in the key array of a given leaf page
    * @param pageNo  the given page
    * @param key     the key 
   **/
   int getIndexLeaf(PageId pageNo, const void* key);
+  
+  
+  const bool BTreeIndex::inRange(int value);
 };
+
 
 
 }
