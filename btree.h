@@ -437,7 +437,7 @@ class BTreeIndex {
   **/
   int getIndexLeaf(PageId pageNo, const void* key);
 
-  const bool BTreeIndex::inRange(int value);
+  const bool inRange(int value);
 };
 
 
