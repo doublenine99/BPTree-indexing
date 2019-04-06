@@ -77,7 +77,7 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 		{
 			//Unpin the meta page before throwing the exception
 			this->bufMgr->unPinPage(this->file, this->file->getFirstPageNo(), false);
-			throw new badgerdb::BadIndexInfoException("MetaInfo mismatch!");
+			// throw new badgerdb::BadIndexInfoException("MetaInfo mismatch!");
 		}
 		else
 		{
@@ -596,23 +596,27 @@ const void BTreeIndex::startScan(const void *lowValParm,
 	{
 		throw BadOpcodesException();
 	}
-	if (lowValParm > highValParm)
+
+	if (*(int *)lowValParm >  *(int *)highValParm)
 	{
 		throw BadScanrangeException();
 	}
+	
 	// set vars for scan
-	lowValInt = *(int *)lowOpParm;
+	lowValInt = *(int *)lowValParm;
 	highValInt = *(int *)highValParm;
 	lowOp = lowOpParm;
 	highOp = highOpParm;
 	nextEntry = 0;
 	scanExecuting = true;
-
+	std::cout <<"root num:"<< rootPageNum<< std::endl;
 	// read and unpin the root
 	Page *root;
 	this->bufMgr->readPage(this->file, rootPageNum, root);
 	this->bufMgr->unPinPage(this->file, rootPageNum, false);
 	// if root is a leaf, directly check whether the root's keys are in the range
+
+	
 	if (this->rootPageNum == 2)
 	{
 		LeafNodeInt *rootNode = (LeafNodeInt *)root;
