@@ -17,7 +17,7 @@
 #include "exceptions/end_of_file_exception.h"
 #include "exceptions/page_not_pinned_exception.h"
 #include "exceptions/page_pinned_exception.h"
-//#define DEBUG
+#define debugBadIndex
 
 namespace badgerdb
 {
@@ -41,8 +41,7 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 	//------Create the name of index file------//
 	std::ostringstream idxStr;
 	idxStr << relationName << '.' << attrByteOffset;
-	std::string indexName = idxStr.str();
-	outIndexName = indexName;
+	outIndexName = idxStr.str();
 
 	//------Initialize some members------//
 	this->attrByteOffset = attrByteOffset;
@@ -52,34 +51,44 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 	this->scanExecuting = false;
 	this->nextEntry = -1;
 	this->currentPageNum = 0;
+	this->headerPageNum = 1;
 
 	//-----Open the index file if exist; otherwise create a new index file with the name created.-----//
-	if (File::exists(indexName))
+	if (File::exists(outIndexName))
 	{
-		BlobFile indexFile = BlobFile::open(indexName);
+		BlobFile indexFile = BlobFile::open(outIndexName);
 		this->file = &indexFile;
 		//Read metaPage (first page) of the file
 		IndexMetaInfo *metaPage;
 		Page *meta;
 		this->bufMgr->readPage(this->file, this->file->getFirstPageNo(), meta);
-		metaPage = (IndexMetaInfo *)meta;
+		metaPage = (IndexMetaInfo*)meta;
+		this->rootPageNum = metaPage->rootPageNo;
 
+#ifdef debugBadIndex
+	std::cout<< "indexName: " << outIndexName << std::endl; 
+	std::cout<< "rootPageNum: " << metaPage->rootPageNo << std::endl;
+	std::cout<< "metapage number: " << this->file->getFirstPageNo() <<std::endl;
+	std::cout<< "param: " << attrByteOffset <<" vs " << "opened: " << metaPage->attrByteOffset<< std::endl; 
+	std::cout<< "param: " << relationName <<" vs " << "opened: " << metaPage->relationName<< std::endl; 
+	std::cout<< "param: " << attrType <<" vs " << "opened: " << metaPage->attrType<< std::endl; 
+#endif
 		if (metaPage->attrByteOffset != attrByteOffset || metaPage->relationName != relationName || metaPage->attrType != attrType)
 		{
 			//Unpin the meta page before throwing the exception
-			this->bufMgr->unPinPage(this->file, this->file->getFirstPageNo(), meta);
+			this->bufMgr->unPinPage(this->file, this->file->getFirstPageNo(), false);
 			throw new badgerdb::BadIndexInfoException("MetaInfo mismatch!");
 		}
 		else
 		{
 			//Unpin the meta page
-			this->bufMgr->unPinPage(this->file, this->file->getFirstPageNo(), meta);
+			this->bufMgr->unPinPage(this->file, this->file->getFirstPageNo(), false);
 		}
 	}
 	//------Create new index file if the index file does not exist------//
 	else
 	{
-		BlobFile indexFile = BlobFile::create(indexName);
+		BlobFile indexFile = BlobFile::create(outIndexName);
 		this->file = &indexFile;
 		//Create metainfo Page
 		IndexMetaInfo *metaPage;
@@ -117,8 +126,8 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 		{
 			std::cout << "All records has been read" << '\n';
 			//Unpin pages
-			this->bufMgr->unPinPage(this->file, this->headerPageNum, meta);
-			this->bufMgr->unPinPage(this->file, this->rootPageNum, root);
+			this->bufMgr->unPinPage(this->file, this->headerPageNum, false);
+			this->bufMgr->unPinPage(this->file, this->rootPageNum, false);
 		}
 	}
 }
