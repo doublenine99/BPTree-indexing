@@ -15,7 +15,8 @@
 #include "exceptions/index_scan_completed_exception.h"
 #include "exceptions/file_not_found_exception.h"
 #include "exceptions/end_of_file_exception.h"
-
+#include "exceptions/page_not_pinned_exception.h"
+#include "exceptions/page_pinned_exception.h"
 //#define DEBUG
 
 namespace badgerdb
@@ -128,6 +129,35 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 
 BTreeIndex::~BTreeIndex()
 {
+	try
+	{
+		if (this->currentPageNum)
+		{
+			this->bufMgr->unPinPage(this->file, this->currentPageNum, false);
+		}
+
+		if (this->scanExecuting) {
+			this->endScan();
+		}
+
+		this->bufMgr->flushFile(this->file);
+		delete this->file;
+		this->file = NULL;
+	}
+	catch(badgerdb::BadgerDbException e)
+	{
+		std::cerr << e.what() << '\n';
+		throw e;
+	}
+	catch (PagePinnedException e){
+		std::cerr << e.what() << '\n';
+		throw e;
+	}
+	catch (PageNotPinnedException e){
+		std::cerr << e.what() << '\n';
+		throw e;
+	}
+	
 }
 
 // -----------------------------------------------------------------------------
