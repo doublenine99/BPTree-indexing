@@ -63,7 +63,6 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 		Page *meta;
 		this->bufMgr->readPage(this->file, this->file->getFirstPageNo(), meta);
 		metaPage = (IndexMetaInfo *)meta;
-		this->rootPageNum = metaPage->rootPageNo;
 
 		if (metaPage->attrByteOffset != attrByteOffset || metaPage->relationName != relationName || metaPage->attrType != attrType)
 		{
