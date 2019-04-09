@@ -437,6 +437,12 @@ class BTreeIndex {
   **/
   int getIndexLeaf(PageId pageNo, const void* key);
 
+  /**
+   * Used to recursively update all the ancestors of the given node after insertion
+   * 
+  **/
+  void updateParents(const void* key, PageId pageNo);
+
   const bool inRange(int value);
 };
 
