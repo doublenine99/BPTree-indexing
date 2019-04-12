@@ -444,6 +444,7 @@ class BTreeIndex {
   void updateParents(const void* key, PageId pageNo);
 
   const bool inRange(int value);
+
 };
 
 
