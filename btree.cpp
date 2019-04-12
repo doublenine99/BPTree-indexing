@@ -89,28 +89,9 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 		if (metaPage->attrByteOffset != attrByteOffset || metaPage->relationName != relationName || metaPage->attrType != attrType)
 		{
 			
-			// try
-			// {
-			// 	this->bufMgr->unPinPage(this->file, this->file->getFirstPageNo(), false);
-			// }
-			// catch(const PageNotPinnedException& e)
-			// {
-			// 	std::cerr << "Constructor: closing meta page caused exception \t"<<  e.what() << '\n';
-			// }
+			
 			throw new badgerdb::BadIndexInfoException("MetaInfo mismatch!");
 		}
-		// else
-		// {
-		// 	//Unpin the meta page
-		// 	try
-		// 	{
-		// 		this->bufMgr->unPinPage(this->file, this->file->getFirstPageNo(), false);
-		// 	}
-		// 	catch(const PageNotPinnedException& e)
-		// 	{
-		// 		std::cerr << "Constructor: closing meta page caused exception \t"<<  e.what() << '\n';
-		// 	}
-		// }
 	}
 	//------Create new index file if the index file does not exist------//
 	else
@@ -200,7 +181,7 @@ BTreeIndex::~BTreeIndex()
 // -----------------------------------------------------------------------------
 const void BTreeIndex::insertEntry(const void *key, const RecordId rid)
 {
-	// std::cout << *((int*) key) << std::endl;
+	std::cout << *((int*) key) << std::endl;
 	if (this->rootPageNum == 2)
 	{ // This means root is a leaf.
 		insertLeaf(key, rid, this->rootPageNum);
@@ -212,6 +193,8 @@ if (*(int*) key == 759 || *(int*) key == 760) {
 	this->bufMgr->readPage(this->file, this->rootPageNum, tmp);
 	NonLeafNodeInt* root = (NonLeafNodeInt*) tmp;
 	this->bufMgr->unPinPage(file, rootPageNum, false);
+	std::cout<< "InsertEntry: size root: " << root->size << std::endl;
+//	root->size = 1;
 	std::cout<< "InsertEntry: size root: " << root->size << std::endl;
 }
 #endif
@@ -262,6 +245,14 @@ PageId BTreeIndex::FindPlaceHelper(const void *key, PageId pageNo)
 // -----------------------------------------------------------------------------
 const void BTreeIndex::insertLeaf(const void *key, RecordId rid, PageId pageNo)
 {
+//if (*((int*) key) == 759 || *((int*) key) == 760) {
+//	Page* temp;
+//	this->bufMgr->readPage(this->file, this->rootPageNum, temp);
+//	NonLeafNodeInt* root = (NonLeafNodeInt*) temp;
+//	root->size = 1;
+//}
+
+
 	Page *tmp;
 	this->bufMgr->readPage(this->file, pageNo, tmp);
 	LeafNodeInt *leafNode = (LeafNodeInt *)tmp;
@@ -273,6 +264,7 @@ const void BTreeIndex::insertLeaf(const void *key, RecordId rid, PageId pageNo)
 	{
 		leafNode->keyArray[leafNode->size] = pair.key;
 		leafNode->ridArray[leafNode->size++] = pair.rid;
+		this->bufMgr->unPinPage(this->file, pageNo, true);
 		return;
 	}
 	
@@ -331,10 +323,6 @@ const void BTreeIndex::insertLeaf(const void *key, RecordId rid, PageId pageNo)
 	std::cout<< "AFTER INSERT: parent: " << getParent(pageNo, key) << std::endl;
 // }
 #endif
-
-	//------update parent's entry------//
-	// PageId parentPage = getParent(pageNo, key);
-	// if (parentPage) updateParents(key, parentPage);
 	
 	//Since inserted, the page is dirty
 	try
@@ -380,8 +368,8 @@ const void BTreeIndex::splitAndInsert(PageId pageNo, const void *key, RecordId r
 	int mid = size / 2 + size % 2;
 
 	// Move the floor (size / 2) of the original page to new page
-	memcpy(newNode->keyArray, leftNode->keyArray + sizeof(int) * mid, sizeof(int) * (size - mid));
-	memcpy(newNode->ridArray, &leftNode->ridArray[mid], sizeof(RecordId) * (size - mid));
+	memcpy(&newNode->keyArray[0], &leftNode->keyArray[mid], sizeof(int) * (size - mid));
+	memcpy(&newNode->ridArray[0], &leftNode->ridArray[mid], sizeof(RecordId) * (size - mid));
 	leftNode->size = mid;
 	newNode->size = size - mid;
 	
@@ -397,7 +385,7 @@ const void BTreeIndex::splitAndInsert(PageId pageNo, const void *key, RecordId r
 		// Update root 
 		root->size = 1;
 		root->level = 1;
-		root->keyArray[0] = leftNode->keyArray[mid];
+		root->keyArray[0] = leftNode->keyArray[mid - 1];
 		root->pageNoArray[0] = pageNo;
 		root->pageNoArray[1] = newPageId;
 		this->bufMgr->unPinPage(this->file, parentPageId, true);
@@ -504,8 +492,8 @@ const void BTreeIndex::splitAndInsertInternal(PageId leftPageNo, const void *key
 	 * new root to be the parent node.
 	*/
 	
-	memcpy(newNode->keyArray, leftNode->keyArray + sizeof(int) * (mid + 1), sizeof(int)*(nodeOccupancy - mid - 1));
-	memcpy(newNode->pageNoArray, &leftNode->pageNoArray[mid + 1], sizeof(PageId) *(nodeOccupancy - mid));
+	memcpy(&newNode->keyArray[0], &leftNode->keyArray[mid + 1], sizeof(int)*(nodeOccupancy - mid - 1));
+	memcpy(&newNode->pageNoArray[0], &leftNode->pageNoArray[mid + 1], sizeof(PageId) *(nodeOccupancy - mid));
 	leftNode->size = mid;
 	newNode->size = nodeOccupancy - mid - 1;
 	
