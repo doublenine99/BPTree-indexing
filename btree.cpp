@@ -65,10 +65,9 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 		//Read metaPage (first page) of the file
 		Page *meta;
 		headerPageNum = this->file->getFirstPageNo();
-		this->bufMgr->readPage(this->file, headerPageNum , meta);
+		this->bufMgr->readPage(this->file, headerPageNum, meta);
 		IndexMetaInfo *metaPage = (IndexMetaInfo *)meta;
 		this->rootPageNum = metaPage->rootPageNo;
-		
 
 #ifdef debugBadIndex
 		std::cout << "param: offset " << attrByteOffset << " vs "
@@ -112,11 +111,11 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 		metaPage->rootPageNo = this->rootPageNum;
 		metaPage->attrByteOffset = attrByteOffset;
 		metaPage->attrType = attributeType;
-		
+
 		// flush pages
 		this->bufMgr->unPinPage(this->file, this->headerPageNum, true);
 		this->bufMgr->unPinPage(this->file, this->rootPageNum, true);
-		
+
 		//Scan all tuples in the relation. Insert all tuples into the index.
 		FileScan scn(relationName, bufMgrIn);
 		try
@@ -143,7 +142,7 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 // -----------------------------------------------------------------------------
 BTreeIndex::~BTreeIndex()
 {
-	
+
 	try
 	{
 		if (this->currentPageNum)
@@ -156,7 +155,8 @@ BTreeIndex::~BTreeIndex()
 			this->endScan();
 		}
 
-		if (this->file){
+		if (this->file)
+		{
 			this->bufMgr->flushFile(this->file);
 			delete this->file;
 			this->file = NULL;
@@ -702,7 +702,8 @@ const void BTreeIndex::startScan(const void *lowValParm,
 {
 
 	// TODO: If another scan is already executing, that needs to be ended here.
-	if (scanExecuting || currentPageData != NULL)
+	if (scanExecuting)
+	// if (scanExecuting || currentPageData != NULL)
 	{
 		currentPageData = NULL;
 	}
@@ -762,6 +763,7 @@ const void BTreeIndex::startScan(const void *lowValParm,
 					{
 						// assign the correct leaf page to be the first leaf page contain the lower bound
 						this->bufMgr->readPage(this->file, currNode->pageNoArray[i], this->currentPageData);
+						currentPageNum = currNode->pageNoArray[i];
 						this->bufMgr->unPinPage(this->file, currNode->pageNoArray[i], false);
 						reachLeaf = true;
 						break;
@@ -777,6 +779,7 @@ const void BTreeIndex::startScan(const void *lowValParm,
 					if (currNode->level == 1)
 					{
 						this->bufMgr->readPage(this->file, currNode->pageNoArray[i], this->currentPageData);
+						currentPageNum = currNode->pageNoArray[i];
 						this->bufMgr->unPinPage(this->file, currNode->pageNoArray[i], false);
 						reachLeaf = true;
 						break;
@@ -794,8 +797,6 @@ const void BTreeIndex::startScan(const void *lowValParm,
 			// scanExecuting = false;
 			throw NoSuchKeyFoundException();
 		}
-		// FIXME: cannot convert
-		// currentPageNum = this->currentPageData->page_number;
 	}
 }
 
@@ -816,38 +817,45 @@ const bool BTreeIndex::inRange(int value)
 // -----------------------------------------------------------------------------
 const void BTreeIndex::scanNext(RecordId &outRid)
 {
-
 	if (scanExecuting == false || currentPageData == NULL)
 	{
 		throw ScanNotInitializedException();
 	}
-	LeafNodeInt *currNode = (LeafNodeInt *)currentPageData;
-	if (!inRange(currNode->keyArray[0]))
+
+	while (1)
 	{
-		// scanExecuting = false;
-		currentPageData = NULL;
-		throw IndexScanCompletedException();
-	}
-	// fetch the record id if the entry match the scan
-	if (inRange(currNode->keyArray[nextEntry]))
-	{
-		outRid = currNode->ridArray[nextEntry];
-	}
-	// move to the right sibling if the current page is entirely scannned
-	if (nextEntry == leafOccupancy - 1)
-	{
+		this->bufMgr->readPage(this->file, currentPageNum, currentPageData);
+		LeafNodeInt *currNode = (LeafNodeInt *)currentPageData;
+
+		// if the first key of currNode > the high bound, stop scanning
+		if ((lowOp == GT && currNode->keyArray[0] >= highValInt) || (lowOp == GTE && currNode->keyArray[0] > highValInt))
+		{
+			throw IndexScanCompletedException();
+		}
+		while (nextEntry < currNode->size) // keep scanning the current node until reach the last entry
+		{
+			// fetch the record id if the entry match the scan
+			if (inRange(currNode->keyArray[nextEntry]))
+			{
+				outRid = currNode->ridArray[nextEntry];
+				nextEntry++;
+				return;
+			}
+			else  // go to next entry of current node
+			{
+				nextEntry++;
+			}
+		}
+		// move to the right sibling if the current page is entirely scannned
+		this->bufMgr->unPinPage(this->file, currentPageNum, false);
 		if (currNode->rightSibPageNo == 0) //read the last leaf node
 		{
 			throw IndexScanCompletedException();
 		}
-		this->bufMgr->allocPage(this->file, currNode->rightSibPageNo, currentPageData);
-		this->bufMgr->unPinPage(this->file, currNode->rightSibPageNo, false);
+		currentPageNum = currNode->rightSibPageNo;
+		nextEntry = 0;
 	}
-	else // move to next entry of the same page
-	{
-		nextEntry++;
-	}
-}
+} // namespace badgerdb
 
 // -----------------------------------------------------------------------------
 // BTreeIndex::endScan
@@ -856,12 +864,13 @@ const void BTreeIndex::scanNext(RecordId &outRid)
 const void BTreeIndex::endScan()
 {
 	// TODO: criteria for not initialized scan
-	if (scanExecuting)
+	if (scanExecuting == false)
 	{
 		throw ScanNotInitializedException();
 	}
 	// reset vars for scan
 	currentPageData = NULL;
+	currentPageNum = 0;
 	scanExecuting = false;
 	nextEntry = -1;
 }
