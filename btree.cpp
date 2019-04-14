@@ -69,17 +69,6 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 		IndexMetaInfo *metaPage = (IndexMetaInfo *)meta;
 		this->rootPageNum = metaPage->rootPageNo;
 
-#ifdef debugBadIndex
-		std::cout << "param: offset " << attrByteOffset << " vs "
-				  << "opened: " << metaPage->attrByteOffset << std::endl;
-		std::cout << "param: name" << relationName << " vs "
-				  << "opened: " << metaPage->relationName << std::endl;
-		std::cout << "param: type" << attrType << " vs "
-				  << "opened: " << metaPage->attrType << std::endl;
-		std::cout << "param: rootpagenum" << rootPageNum << " vs "
-				  << "opened: " << metaPage->rootPageNo << std::endl;
-#endif
-
 		if (metaPage->attrByteOffset != attrByteOffset || metaPage->relationName != relationName || metaPage->attrType != attrType)
 		{
 			//Unpin the meta page before throwing the exception
@@ -165,7 +154,6 @@ BTreeIndex::~BTreeIndex()
 	catch (badgerdb::BadgerDbException e)
 	{
 		std::cerr << e.what() << '\n';
-		throw e;
 	}
 }
 
@@ -180,18 +168,6 @@ const void BTreeIndex::insertEntry(const void *key, const RecordId rid)
 		insertLeaf(key, rid, this->rootPageNum);
 		return;
 	}
-#ifdef DEBUGINSERTLEAF
-	if (*(int *)key == 759 || *(int *)key == 760)
-	{
-		Page *tmp;
-		this->bufMgr->readPage(this->file, this->rootPageNum, tmp);
-		NonLeafNodeInt *root = (NonLeafNodeInt *)tmp;
-		this->bufMgr->unPinPage(file, rootPageNum, false);
-		std::cout << "InsertEntry: size root: " << root->size << std::endl;
-		//	root->size = 1;
-		std::cout << "InsertEntry: size root: " << root->size << std::endl;
-	}
-#endif
 	// The root is a nonleafNode
 	PageId pageToInsert = FindPlaceHelper(key, this->rootPageNum);
 	insertLeaf(key, rid, pageToInsert);
@@ -209,24 +185,6 @@ PageId BTreeIndex::FindPlaceHelper(const void *key, PageId pageNo)
 	// Find the index to insert in the page, and find the corresponding child page
 	int index = getIndexNonLeaf(pageNo, key);
 	PageId nextLevelPage = curNode->pageNoArray[index];
-#ifdef DEBUGFINDPLACEHELPER
-	// if (*(int*) key == 759 || *(int*) key == 760) {
-	std::cout << "=====================================================================================================================================" << std::endl;
-	std::cout << "root page number: " << this->rootPageNum << std::endl;
-	std::cout << "index in root node: " << index << std::endl;
-	std::cout << "page to insert into: " << nextLevelPage << std::endl;
-	this->bufMgr->readPage(this->file, this->rootPageNum, tmp);
-	NonLeafNodeInt *root = (NonLeafNodeInt *)tmp;
-	std::cout << "root node size: " << root->size << std::endl;
-	std::cout << "root node first key: " << root->keyArray[0] << std::endl;
-	std::cout << "root node first page: " << root->pageNoArray[0] << std::endl;
-	std::cout << "root node second page: " << root->pageNoArray[1] << std::endl;
-	std::cout << "root node last page: " << root->pageNoArray[root->size] << std::endl;
-	std::cout << "this key:  " << *(int *)key << std::endl;
-	this->bufMgr->unPinPage(this->file, this->rootPageNum, false);
-	std::cout << "=====================================================================================================================================" << std::endl;
-// }
-#endif
 	// If the page is one level above the leaf
 	if (curNode->level == 1)
 		return nextLevelPage;
@@ -254,41 +212,15 @@ const void BTreeIndex::insertLeaf(const void *key, RecordId rid, PageId pageNo)
 		return;
 	}
 
-#ifdef DEBUGINSERTLEAF
-	// if (*(int*) key == 759 || *(int*) key == 760) {
-	std::cout << "-----------InsertLeaf method starts here-----------\n"
-			  << "key: " << *(int *)key << " page num: " << pageNo << std::endl;
-	std::cout << "size: " << leafNode->size << std::endl;
-// }
-#endif
-
 	int index = getIndexLeaf(pageNo, key);
 
 	/*---Check if need to split. If so, split and insert---*/
 	if (leafNode->size == this->leafOccupancy)
 	{
-#ifdef DEBUGLEAFSPLIT
-		// if (*(int*) key == 759 || *(int*) key == 760) {
-		std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!insertleaf Called splitAndInsert!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-// }
-#endif
 		splitAndInsert(pageNo, key, rid);
 		this->bufMgr->unPinPage(this->file, pageNo, false);
 		return;
 	}
-#ifdef DEBUGINSERTLEAF
-	// if (*(int*) key == 759 || *(int*) key == 760) {
-	std::cout << "No split\n"
-			  << std::endl;
-	std::cout << "index in leaf: " << index << std::endl;
-	std::cout << "BEFORE INSERT: size leaf: " << leafNode->size << std::endl;
-	this->bufMgr->readPage(this->file, this->rootPageNum, tmp);
-	NonLeafNodeInt *root = (NonLeafNodeInt *)tmp;
-	this->bufMgr->unPinPage(file, rootPageNum, false);
-	std::cout << "BEFORE INSERT: size root: " << root->size << std::endl;
-// }
-#endif
-
 	// Move every entry from i to i+1 since we are inserting at i. In this case, no need to change parent's entry
 	for (int j = leafNode->size - 1; j >= index; j--)
 	{
@@ -300,18 +232,6 @@ const void BTreeIndex::insertLeaf(const void *key, RecordId rid, PageId pageNo)
 	leafNode->ridArray[index] = pair.rid;
 	leafNode->size++;
 
-#ifdef DEBUGINSERTLEAF
-	// if (*(int*) key == 759 || *(int*) key == 760) {
-	std::cout << "index: " << index << std::endl;
-	std::cout << "AFTER INSERT: size leaf: " << leafNode->size << std::endl;
-	this->bufMgr->readPage(this->file, this->rootPageNum, tmp);
-	NonLeafNodeInt *root2 = (NonLeafNodeInt *)tmp;
-	this->bufMgr->unPinPage(file, rootPageNum, false);
-	std::cout << "AFTER INSERT: size root: " << root2->size << std::endl;
-	std::cout << "AFTER INSERT: parent: " << getParent(pageNo, key) << std::endl;
-// }
-#endif
-
 	//Since inserted, the page is dirty
 	try
 	{
@@ -321,11 +241,6 @@ const void BTreeIndex::insertLeaf(const void *key, RecordId rid, PageId pageNo)
 	{
 		std::cerr << "insertLeaf: exception thrown after all insertion \t" << e.what() << '\n';
 	}
-#ifdef DEBUGINSERTLEAF
-	std::cout << "size: " << leafNode->size << std::endl;
-	std::cout << "------------InsertLeaf method ends here------------\n"
-			  << std::endl;
-#endif
 }
 
 // -----------------------------------------------------------------------------
@@ -333,10 +248,6 @@ const void BTreeIndex::insertLeaf(const void *key, RecordId rid, PageId pageNo)
 // -----------------------------------------------------------------------------
 const void BTreeIndex::splitAndInsert(PageId pageNo, const void *key, RecordId rid)
 {
-#ifdef DEBUGLEAFSPLIT
-	std::cout << "-----------splitAndInsert Method-----------\n"
-			  << "key: " << *(int *)key << " Page number:  " << pageNo << std::endl;
-#endif
 	Page *tmp;
 	this->bufMgr->readPage(this->file, pageNo, tmp);
 	LeafNodeInt *leftNode = (LeafNodeInt *)tmp;
@@ -405,11 +316,6 @@ const void BTreeIndex::splitAndInsert(PageId pageNo, const void *key, RecordId r
 	{
 		std::cerr << "splitAndInsert: exception thrown when closing the original and new leaf node\t" << e.what() << '\n';
 	}
-#ifdef DEBUGLEAFSPLIT
-	std::cout << "original page number: " << pageNo << " | new page number: " << newPageId << std::endl;
-	std::cout << "-----------splitAndInsert Method Ends here-----------\n"
-			  << std::endl;
-#endif
 }
 
 // -----------------------------------------------------------------------------
@@ -562,49 +468,22 @@ PageId BTreeIndex::getParent(PageId childPageNo, const void *key)
 	{
 		std::cout << "a" << std::endl;
 	}
-#ifdef GETPRARENT
-	std::cout << "-----------getParent method starts here-----------" << std::endl;
-	std::cout << "input page num: " << childPageNo << std::endl;
-#endif
 	// This means there's no parent for the given node
 	if (childPageNo == rootPageNum)
 	{
-#ifdef GETPRARENT
-		std::cout << "-----------getParent method ends here----------- NO PARENT" << std::endl;
-#endif
 		return 0;
 	}
 	PageId parentNo = rootPageNum; // Parent starts from the root
-#ifdef GETPRARENT
-	Page *tmp;
-	std::cout << childPageNo << " ? " << rootPageNum << std::endl;
-	this->bufMgr->readPage(this->file, rootPageNum, tmp);
-	NonLeafNodeInt *root = (NonLeafNodeInt *)tmp;
-	std::cout << "root size: " << root->size << std::endl;
-	std::cout << "root 0: " << root->pageNoArray[0] << std::endl;
-	std::cout << "root 1: " << root->pageNoArray[1] << std::endl;
-	std::cout << "root level: " << root->level << std::endl;
-#endif
-
 	while (1)
 	{
-#ifdef GETPRARENT
-		std::cout << "each iter parentNo: " << parentNo << std::endl;
-#endif
 		Page *tmp;
 		this->bufMgr->readPage(this->file, parentNo, tmp);
 		NonLeafNodeInt *parentCurNode = (NonLeafNodeInt *)tmp;
+		this->bufMgr->unPinPage(this->file, parentNo, tmp);
 		PageId childCurNo = parentCurNode->pageNoArray[getIndexNonLeaf(parentNo, key)];
-#ifdef GETPRARENT
-		std::cout << "index in parent page: " << getIndexNonLeaf(parentNo, key) << std::endl;
-		std::cout << "size of parent page: " << parentCurNode->size << std::endl;
-		std::cout << "corresponding child page id: " << childCurNo << std::endl;
-#endif
+
 		if (childCurNo == childPageNo)
 		{
-#ifdef GETPRARENT
-			std::cout << "-----------getParent method ends here----------- Parent:" << parentNo << std::endl;
-#endif
 			return parentNo;
 		}
 		parentNo = childCurNo;
@@ -627,17 +506,6 @@ int BTreeIndex::getIndexNonLeaf(PageId pageNo, const void *key)
 	{
 		std::cerr << "getIndexNonLeaf: exception thrown after computing the index\t" << e.what() << '\n';
 	}
-
-#ifdef DEBUGINSERTLEAF
-	if (*(int *)key == 759 || *(int *)key == 760)
-	{
-		Page *tmp;
-		this->bufMgr->readPage(this->file, this->rootPageNum, tmp);
-		NonLeafNodeInt *root = (NonLeafNodeInt *)tmp;
-		this->bufMgr->unPinPage(file, rootPageNum, false);
-		std::cout << "getIndexNonLeaf: size root: " << root->size << std::endl;
-	}
-#endif
 
 	// Check if the node is empty
 	if (!curNode->size)
@@ -825,6 +693,7 @@ const void BTreeIndex::scanNext(RecordId &outRid)
 	while (1)
 	{
 		this->bufMgr->readPage(this->file, currentPageNum, currentPageData);
+		this->bufMgr->unPinPage(this->file, currentPageNum, false);
 		LeafNodeInt *currNode = (LeafNodeInt *)currentPageData;
 
 		// if the first key of currNode > the high bound, stop scanning
@@ -847,7 +716,6 @@ const void BTreeIndex::scanNext(RecordId &outRid)
 			}
 		}
 		// move to the right sibling if the current page is entirely scannned
-		this->bufMgr->unPinPage(this->file, currentPageNum, false);
 		if (currNode->rightSibPageNo == 0) //read the last leaf node
 		{
 			throw IndexScanCompletedException();
