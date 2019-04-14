@@ -143,6 +143,7 @@ BTreeIndex::~BTreeIndex()
 		{
 			this->endScan();
 		}
+
 		if (this->file)
 		{
 			this->bufMgr->flushFile(this->file);
