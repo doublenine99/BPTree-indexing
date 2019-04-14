@@ -368,7 +368,6 @@ class BTreeIndex {
 	**/
 	const void scanNext(RecordId& outRid);  // returned record id
 
-
   /**
 	 * Terminate the current scan. Unpin any pinned pages. Reset scan specific variables.
 	 * @throws ScanNotInitializedException If no scan has been initialized.
@@ -377,23 +376,31 @@ class BTreeIndex {
 
   /**
    * Helper function for insertEntry. Find the position in the tree to insert. 
-   * @param key
-   * @param pageId the leaf node to be inserted in
+   * @param key       key to be inserted
+   * @param pageId    the leaf node to be inserted in
   **/
 	PageId FindPlaceHelper(const void *key, PageId pageId);
   
   /**
    * Insert at the specified page (must be a leaf node)
-   * @param key to be inserted
-   * @param RecordId to be inserted
-   * @param pageId the leaf node to be inserted in 
+   * @param key     key to be inserted
+   * @param rid     RecordId to be inserted
+   * @param pageNo  pageId the leaf node to be inserted in 
   **/
   const void insertLeaf(const void* key, RecordId rid, PageId pageNo);
+
+  /**
+   * Method to split leaf nodes while inserting to leaves.
+   * @param pageNo  page number to be split
+   * @param key     key to be insert
+   * @param rid     rid to be inserted
+  **/
+  const void splitAndInsert(PageId pageNo, const void* key,RecordId rid);
   
   /**
    * Insert at the specified page (must be a nonleaf node)
-   * @param key to be inserted
-   * @param pageId the leaf node to be inserted in 
+   * @param key         key to be inserted
+   * @param parentPage  pageId the leaf node to be inserted in 
   **/
   const void insertInternal(const void* key, PageId parentPageNo, PageId childPageNo);
 
@@ -412,11 +419,6 @@ class BTreeIndex {
   const void splitRoot();
 
   /**
-   * Method to split leaf nodes while inserting to leaves.
-  **/
-  const void splitAndInsert(PageId pageNo, const void* key,RecordId rid);
-
-  /**
    * Used to find the parent of a node.
    * @param childPageNo  the pageId of the child
    * @param key  any key in the childPage 
@@ -432,16 +434,10 @@ class BTreeIndex {
 
    /**
    * Used to find the proper index the key should appear in the key array of a given leaf page. Return 0 if the node is empty.
-   * @param pageNo  the given page
-   * @param key     the key 
+   * @param pageNo    the given page
+   * @param key       the key 
   **/
   int getIndexLeaf(PageId pageNo, const void* key);
-
-  /**
-   * Used to recursively update all the ancestors of the given node after insertion
-   * 
-  **/
-  void updateParents(const void* key, PageId pageNo);
 
   const bool inRange(int value);
 
