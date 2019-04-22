@@ -58,9 +58,6 @@ urls = ('/currtime', 'curr_time',
         )
 
 class index:
-    # A simple GET request, to '/'
-
-    #Generate the navigation page
     def GET(self):
         return render_template('app_base.html')
 
