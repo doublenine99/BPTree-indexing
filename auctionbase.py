@@ -94,9 +94,7 @@ class select_time:
         enter_name = post_params['entername']
 
         currTime = sqlitedb.getTime()
-        print "a " +currTime
     
-
         selected_time = '%s-%s-%s %s:%s:%s' % (yyyy, MM, dd, HH, mm, ss)
         update_message = '(Hello, %s. Previously selected time was: %s.)' % (enter_name, selected_time)
         sqlitedb.updateCurrTime(currTime, selected_time)

@@ -36,23 +36,37 @@ def transaction():
 
 
 def getTime():
-    # TODO: update the query string to match
-    # the correct column and table name in your database
     query_string = 'select Time from CurrentTime'
-    results = query(query_string)
+
+    t = db.transaction()
+    try:
+        results = query(query_string)
+    except Exception as e:
+        t.rollback()
+        print str(e)
+    else:
+        t.commit()
     return results[0]['Time']
-    # return results[0].Time # TODO: update this as well to match the
-    # column name
 
 
-def updateCurrTime(inputTime):
-    currTime = getTime
-    sql = ""
+def updateCurrTime(oldTime, inputTime):
+    sql = "UPDATE CurrentTime SET Time = '" + \
+        inputTime + "' WHERE Time = '" + oldTime + "'"
 
+    t = db.transaction()
+    try:
+        db.query(sql)
+    except Exception as e:
+        t.rollback()
+        print str(e)
+    else:
+        t.commit()
 
 # returns a single item specified by the Item's ID in the database
 # Note: if the `result' list is empty (i.e. there are no items for a
 # a given ID), this will throw an Exception!
+
+
 def getItemById(item_id):
     # TODO: rewrite this method to catch the Exception in case `result' is empty
     query_string = 'select * from Items where item_ID = $itemID'
