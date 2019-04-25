@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
-import sys; sys.path.insert(0, 'lib') # this line is necessary for the rest
-import os                             # of the imports to work!
-
-import web
-import sqlitedb
-from jinja2 import Environment, FileSystemLoader
 from datetime import datetime
+from jinja2 import Environment, FileSystemLoader
+import sqlitedb
+import web
+import os                             # of the imports to work!
+import sys
+sys.path.insert(0, 'lib')  # this line is necessary for the rest
+
 
 ###########################################################################################
 ##########################DO NOT CHANGE ANYTHING ABOVE THIS LINE!##########################
@@ -21,6 +22,7 @@ from datetime import datetime
 # Sample use:
 # current_time = string_to_time(sqlitedb.getTime())
 
+
 def string_to_time(date_str):
     return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
 
@@ -34,34 +36,61 @@ def string_to_time(date_str):
 # See curr_time's `GET' method for sample usage
 #
 # WARNING: DO NOT CHANGE THIS METHOD
+
+
 def render_template(template_name, **context):
     extensions = context.pop('extensions', [])
     globals = context.pop('globals', {})
 
     jinja_env = Environment(autoescape=True,
-            loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates')),
-            extensions=extensions,
-            )
+                            loader=FileSystemLoader(os.path.join(
+                                os.path.dirname(__file__), 'templates')),
+                            extensions=extensions,
+                            )
     jinja_env.globals.update(globals)
 
-    web.header('Content-Type','text/html; charset=utf-8', unique=True)
+    web.header('Content-Type', 'text/html; charset=utf-8', unique=True)
 
     return jinja_env.get_template(template_name).render(context)
 
 #####################END HELPER METHODS#####################
 
+
 urls = ('/currtime', 'curr_time',
         '/selecttime', 'select_time',
-        '/search','search_time',
-        '/addbid','add_bid',
+        '/search', 'search',
+        '/add_bid', 'add_bid',
         '/', 'index',
+        '/iteminfo', 'item_info'
         # TODO: add additional URLs here
         # first parameter => URL, second parameter => class name
         )
 
+
 class index:
     def GET(self):
         return render_template('app_base.html')
+
+
+class add_bid:
+    def GET(self):
+        msg = "Please enter the item ID, your user ID, and your price."
+        return render_template('add_bid.html', message=msg)
+
+    def POST(self):
+        post_params = web.input()
+        item_id = post_params['itemID']
+        user_id = post_params['userID']
+        price = post_params['price']
+        msg = "Please enter the item ID, your user ID, and your price."
+        # call some method and update the database
+        add_result = sqlitedb.add_bid(item_id, user_id, price)
+        return render_template('add_bid.html', add_result=add_result, message=msg)
+
+
+class item_info:
+    def GET(self, item_id=None):
+        return render_template('item_info.html')
 
 
 class curr_time:
@@ -71,7 +100,8 @@ class curr_time:
     # in order to have its value displayed on the web page
     def GET(self):
         current_time = sqlitedb.getTime()
-        return render_template('curr_time.html', time = current_time)
+        return render_template('curr_time.html', time=current_time)
+
 
 class select_time:
     # Aanother GET request, this time to the URL '/selecttime'
@@ -94,16 +124,69 @@ class select_time:
         enter_name = post_params['entername']
 
         currTime = sqlitedb.getTime()
-    
+
         selected_time = '%s-%s-%s %s:%s:%s' % (yyyy, MM, dd, HH, mm, ss)
-        update_message = '(Hello, %s. Previously selected time was: %s.)' % (enter_name, selected_time)
+        update_message = '(Hello, %s. Previously selected time was: %s.)' % (
+            enter_name, selected_time)
         sqlitedb.updateCurrTime(currTime, selected_time)
         # Here, we assign `update_message' to `message', which means we'll refer to it in our template as `message'
-        return render_template('select_time.html', message = update_message)
+        return render_template('select_time.html', message=update_message)
+
+
+def intersection(lst1, lst2):
+    lst3 = [value for value in lst1 if value in lst2]
+    return lst3
+
+
+class search:
+
+    # Another GET request, this time to the URL '/search'
+    def GET(self):
+        return render_template('search.html')
+
+    def POST(self):
+        post_params = web.input()
+        itemID = post_params['itemID']
+        userID = post_params['userID']
+        minPrice = post_params['minPrice']
+        maxPrice = post_params['maxPrice']
+        status = post_params['status']
+        searchByItemID = sqlitedb.getByID(itemID)
+        searchByUserID = sqlitedb.getByUserId(userID)
+        searchByMinPrice = sqlitedb.getByMinPrice(minPrice)
+        searchByMaxPrice = sqlitedb.getByMaxPrice(maxPrice)
+        searchByStatus = sqlitedb.getByStatus(status)
+#        print searchByStatus
+
+        # set up default final result
+        if (itemID != ''):
+            final_result = searchByItemID
+        elif (userID != ''):
+            final_result = searchByUserID
+        elif(maxPrice != ''):
+            final_result = searchByMaxPrice
+        elif (minPrice != ''):
+            final_result = searchByMinPrice
+        else:
+            final_result =[]
+        # compose mulitple filters
+        if (userID != ''):
+            final_result = intersection(final_result, searchByUserID)
+        if (maxPrice != ''):
+            final_result = intersection(final_result, searchByMaxPrice)
+        if (minPrice != ''):
+            final_result = intersection(final_result,searchByMinPrice)
+        if (searchByStatus != False):
+            final_result = intersection(final_result, searchByStatus)
+
+        # selected_info = '%s-%s %s:%s' % (itemID, userID, minPrice, maxPrice)
+        # update_message = '(selected information is: %s.)' % (selected_info)
+        return render_template('search.html', search_result=final_result)
 
 ###########################################################################################
 ##########################DO NOT CHANGE ANYTHING BELOW THIS LINE!##########################
 ###########################################################################################
+
 
 if __name__ == '__main__':
     web.internalerror = web.debugerror
