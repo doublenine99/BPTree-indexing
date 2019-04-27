@@ -1,0 +1,25 @@
+{% extends "app_base.html" %}
+{% block content %}
+<h3> Item Info </h3> 
+<body>
+    <div>title: {{title}} </div> 
+    <div>description: {{desc}} </div> 
+    <div>Seller: {{Seller}} </div> 
+    <div>Categories: 
+    $for category in Categories: 
+        $category <br/>
+    </div>
+    <div>start time:  {{start_time}}  end time: {{end_time}}</div> 
+    <div>status:  <strong>{{status}}</strong> </div> 
+    <div>
+        <ul>
+            <li>Bidder Name: {{bidder_name}}</li>
+            <li>Bid Time: {{bid_time}}</li>
+            <li>Current Price: {{cur_price}}</li>
+            <li>Buy price: {{buy_price}}</li>
+            $if closed:
+                <li>Winner: {{bidder_name}} </li>
+        </ul>
+    </div>
+</body>
+{% endblock %}
