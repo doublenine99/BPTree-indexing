@@ -38,14 +38,11 @@ def transaction():
 def getTime():
     query_string = 'select Time from CurrentTime'
 
-    t = db.transaction()
     try:
         results = query(query_string)
     except Exception as e:
-        t.rollback()
         print str(e)
-    else:
-        t.commit()
+        return None
     return results[0]['Time']
 
 
@@ -80,7 +77,7 @@ def query(query_string, vars={}):
 def getItemById(item_id):
     # TODO: rewrite this method to catch the Exception in case `result' is empty
     try:
-        query_string = 'select * from Items where item_ID = $itemID'
+        query_string = 'select * from Items where itemID = $itemID'
         results = query(query_string, {'itemID': item_id})
         return results[0]
     except Exception as e:
@@ -92,8 +89,8 @@ def getItemById(item_id):
 def add_bid(item_id, user_id, price):
     # TODO insert a bid to the database
     t = db.transaction()
-
     try:
+        
         currtime = getTime()
         # Check if the item_id violates the foreign key constraint
         item = getItemById(item_id)['Name']
@@ -113,7 +110,7 @@ def add_bid(item_id, user_id, price):
 
         # Check if the user input price is higher than current price
         currentPrice = getCurrentPrice(item_id)
-        if price > currentPrice:
+        if price <= currentPrice:
             print("Invalid input on Amount! must be higher than current amount! \n")
             print("Current amount: ", currentPrice)
             return False
@@ -136,7 +133,7 @@ def add_bid(item_id, user_id, price):
 def getCurrentPrice(item_id):
     try:
         # FIXME
-        query_string = 'select Currently from Items where item_ID = $itemID'
+        query_string = 'select Currently from Items where itemID = $itemID'
         result = query(query_string, {'itemID': item_id})
         return result[0]["Currently"]
     except Exception as e:
@@ -149,9 +146,9 @@ def getCurrentPrice(item_id):
 def getUser(user_id):
     try:
         # FIXME $var doesnot work
-        query_string = 'select * from Users where User_ID = $userID'
+        query_string = 'select * from Users where UserID = $userID'
         result = query(query_string, {'userID': user_id})
-        return result[0]["Name"]
+        return result[0]['UserID']
     except Exception as e:
         print(str(e))
         return None
@@ -167,7 +164,7 @@ def getByID(item_id):
     if (item_id == ''):
         return None
     # TODO: rewrite this method to catch the Exception in case `result' is empty
-    query_string = "select Name from Items where ItemID = " + item_id
+    query_string = "select Name, ItemID, currently from Items where ItemID = " + item_id
     t = db.transaction()
     try:
         results = query(query_string, {'ItemID': item_id})
@@ -184,7 +181,7 @@ def getByUserId(user_id):
         return None
     # TODO: rewrite this method to catch the Exception in case `result' is empty
     results = []
-    query_string = "select Name from Items where Seller_UserID = \'" + user_id + "\'"
+    query_string = "select Name, ItemID, currently from Items where Seller_UserID = \'" + user_id + "\'"
     t = db.transaction()
     try:
         results = query(query_string, {'UserID': user_id})
@@ -201,7 +198,7 @@ def getByMinPrice(min_price):
         return None
 
     # TODO: rewrite this method to catch the Exception in case `result' is empty
-    query_string = "select Name from Items where currently >= " + min_price
+    query_string = "select Name, ItemID, currently from Items where currently >= " + min_price
     t = db.transaction()
     try:
         results = query(query_string, {'minPrice': min_price})
@@ -218,7 +215,7 @@ def getByMaxPrice(max_price):
     if (max_price == ''):
         return None
     # TODO: rewrite this method to catch the Exception in case `result' is empty
-    query_string = "select Name from Items where currently <= " + max_price
+    query_string = "select Name, ItemID, currently from Items where currently <= " + max_price
     t = db.transaction()
     try:
         results = query(query_string)
@@ -234,11 +231,11 @@ def getByMaxPrice(max_price):
 def getByStatus(status):
     # TODO: rewrite this method to catch the Exception in case `result' is empty
     if status == "open":
-        query_string = "select Name from currenttime, items where (currenttime.time >= items.started and currenttime.time <= items.ends)"
+        query_string = "select Name, ItemID, currently from currenttime, items where (currenttime.time >= items.started and currenttime.time <= items.ends)"
     elif status == "close":
-        query_string = "select Name from items, currenttime where (currenttime.time > items.ends or items.currently >= items.buy_price)"
+        query_string = "select Name, ItemID, currently from items, currenttime where (currenttime.time > items.ends or items.currently >= items.buy_price)"
     elif status == "notStarted":
-        query_string = "select Name from items, currenttime where currenttime.time < items.started"
+        query_string = "select Name, ItemID, currently from items, currenttime where currenttime.time < items.started"
     else:
         return False
 
@@ -257,7 +254,7 @@ def getByCategory(category):
     if (category == ''):
         return None
     # TODO: rewrite this method to catch the Exception in case `result' is empty
-    query_string = "select name from Items, Categories where Categories.ItemID = Items.ItemID AND category LIKE \'%" + category + "%\'"
+    query_string = "select Name, ItemID, currently from Items, Categories where Categories.ItemID = Items.ItemID AND category LIKE \'%" + category + "%\'"
     t = db.transaction()
     try:
         results = query(query_string)
@@ -273,7 +270,7 @@ def getByDescription(description):
     if (description == ''):
         return None
     # TODO: rewrite this method to catch the Exception in case `result' is empty
-    query_string = "select name from Items where description LIKE \'%" + description + "%\'"
+    query_string = "select nameName, ItemID, currently from Items where description LIKE \'%" + description + "%\'"
     t = db.transaction()
     try:
         results = query(query_string)

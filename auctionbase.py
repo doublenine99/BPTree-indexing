@@ -84,6 +84,7 @@ class add_bid:
         price = post_params['price']
         msg = "Please enter the item ID, your user ID, and your price."
         # call some method and update the database
+        # currtime = sqlitedb.getTime()
         add_result = sqlitedb.add_bid(item_id, user_id, price)
         return render_template('add_bid.html', add_result=add_result, message=msg)
 
