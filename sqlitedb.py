@@ -86,12 +86,31 @@ def getItemById(item_id):
 # TODO: additional methods to interact with your database,
 
 
+def closed(item_id):
+    currtime = getTime()
+    endTime = query("select ends from Items where itemId = $itemID" ,{'itemID': item_id})
+    buyPrice =query("select Buy_Price from Items where itemId = $itemID", {'itemID': item_id})
+    currentPrice = query("select currently from Items where itemId = $itemID", {'itemID': item_id})
+    if (currentPrice >= buyPrice or currtime > endTime):
+        print "The auction for this item has closed"
+        return True
+    else:
+        return False
+
 def add_bid(item_id, user_id, price):
-    # TODO insert a bid to the database
+    startTime = query('select started from Items where itemId = $itemID', {'itemID': item_id} )
+    currtime = getTime()
+    
     t = db.transaction()
     try:
         
-        currtime = getTime()
+        if (currtime < startTime):
+            print "The auction for this item hasn't started yet"
+            return False
+        if (closed(item_id)):
+            print "The auction for this item has closed"
+            return False
+    
         # Check if the item_id violates the foreign key constraint
         item = getItemById(item_id)['Name']
         if item == None:
@@ -114,10 +133,10 @@ def add_bid(item_id, user_id, price):
             print("Invalid input on Amount! must be higher than current amount! \n")
             print("Current amount: ", currentPrice)
             return False
-        else:
-            print("Your bid amount: ", price)
-        db.insert("Bids", ItemID=item_id, UserID=user_id,
-                  Amount=price, Time=currtime)
+
+        print("Your bid amount: ", price)
+        db.insert("Bids", ItemID=item_id, UserID=user_id, Amount=price, Time=currtime)
+        query("update Items set currently = $price where ItemId = $itemID", {'itemID': item_id})
 
         # ? need to check current time?
     except Exception as e:
