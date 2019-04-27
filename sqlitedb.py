@@ -86,29 +86,27 @@ def getItemById(item_id):
 # TODO: additional methods to interact with your database,
 
 
-def closed(item_id):
+def status(item_id):
     currtime = getTime()
     endTime = query("select ends from Items where itemId = $itemID" ,{'itemID': item_id})
     buyPrice =query("select Buy_Price from Items where itemId = $itemID", {'itemID': item_id})
     currentPrice = query("select currently from Items where itemId = $itemID", {'itemID': item_id})
+    startTime = query('select started from Items where itemId = $itemID', {'itemID': item_id} )
     if (currentPrice >= buyPrice or currtime > endTime):
-        print "The auction for this item has closed"
-        return True
-    else:
-        return False
+        
+        return "closed"
+    if (currtime < startTime):
+        print "The auction for this item hasn't started yet"
+        return "not started"
+    return "open"
 
 def add_bid(item_id, user_id, price):
-    startTime = query('select started from Items where itemId = $itemID', {'itemID': item_id} )
     currtime = getTime()
-    
     t = db.transaction()
     try:
-        
-        if (currtime < startTime):
-            print "The auction for this item hasn't started yet"
+        if (status(item_id) == "not started"):
             return False
-        if (closed(item_id)):
-            print "The auction for this item has closed"
+        if (status(item_id)):
             return False
     
         # Check if the item_id violates the foreign key constraint
