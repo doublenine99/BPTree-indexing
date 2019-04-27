@@ -151,12 +151,15 @@ class search:
         minPrice = post_params['minPrice']
         maxPrice = post_params['maxPrice']
         status = post_params['status']
+        category = post_params['category']
+        description = post_params['description']
         searchByItemID = sqlitedb.getByID(itemID)
         searchByUserID = sqlitedb.getByUserId(userID)
         searchByMinPrice = sqlitedb.getByMinPrice(minPrice)
         searchByMaxPrice = sqlitedb.getByMaxPrice(maxPrice)
         searchByStatus = sqlitedb.getByStatus(status)
-#        print searchByStatus
+        searchByCategory = sqlitedb.getByCategory(category)
+        seachByDescription = sqlitedb.getByDescription(description)
 
         # set up default final result
         if (itemID != ''):
@@ -167,6 +170,10 @@ class search:
             final_result = searchByMaxPrice
         elif (minPrice != ''):
             final_result = searchByMinPrice
+        elif (category != ''):
+            final_result = searchByCategory
+        elif(description != ''):
+            final_result = seachByDescription
         else:
             final_result =[]
         # compose mulitple filters
@@ -178,6 +185,10 @@ class search:
             final_result = intersection(final_result,searchByMinPrice)
         if (searchByStatus != False):
             final_result = intersection(final_result, searchByStatus)
+        if (category != ''):
+            final_result = intersection(final_result, searchByCategory)
+        if (description != ''):
+            final_result = intersection(final_result, seachByDescription)
 
         # selected_info = '%s-%s %s:%s' % (itemID, userID, minPrice, maxPrice)
         # update_message = '(selected information is: %s.)' % (selected_info)

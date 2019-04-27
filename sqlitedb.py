@@ -63,7 +63,6 @@ def updateCurrTime(oldTime, inputTime):
         t.commit()
 
 
-
 # wrapper method around web.py's db.query method
 # check out http://webpy.org/cookbook/query for more info
 
@@ -76,6 +75,8 @@ def query(query_string, vars={}):
 # returns a single item specified by the Item's ID in the database
 # Note: if the `result' list is empty (i.e. there are no items for a
 # a given ID), this will throw an Exception!
+
+
 def getItemById(item_id):
     # TODO: rewrite this method to catch the Exception in case `result' is empty
     try:
@@ -86,6 +87,7 @@ def getItemById(item_id):
         print(str(e))
         return None
 # TODO: additional methods to interact with your database,
+
 
 def add_bid(item_id, user_id, price):
     # TODO insert a bid to the database
@@ -117,21 +119,23 @@ def add_bid(item_id, user_id, price):
             return False
         else:
             print("Your bid amount: ", price)
-        db.insert("Bids", ItemID=item_id, UserID=user_id, Amount=price, Time=currtime)
+        db.insert("Bids", ItemID=item_id, UserID=user_id,
+                  Amount=price, Time=currtime)
 
-        #? need to check current time?
+        # ? need to check current time?
     except Exception as e:
         t.rollback()
         print str(e)
         print "??????????????????????????????????"
-        return False             
+        return False
     else:
         t.commit()
         return True
 
+
 def getCurrentPrice(item_id):
     try:
-        # FIXME 
+        # FIXME
         query_string = 'select Currently from Items where item_ID = $itemID'
         result = query(query_string, {'itemID': item_id})
         return result[0]["Currently"]
@@ -140,6 +144,8 @@ def getCurrentPrice(item_id):
         return None
 
 # returns the user with specific user_id. return None if no such user exists
+
+
 def getUser(user_id):
     try:
         # FIXME $var doesnot work
@@ -161,7 +167,7 @@ def getByID(item_id):
     if (item_id == ''):
         return None
     # TODO: rewrite this method to catch the Exception in case `result' is empty
-    query_string = "select Name from Items where ItemID = " + item_id 
+    query_string = "select Name from Items where ItemID = " + item_id
     t = db.transaction()
     try:
         results = query(query_string, {'ItemID': item_id})
@@ -172,10 +178,6 @@ def getByID(item_id):
         t.commit()
     return results
 
-# defined by me
-# returns a single item specified by the user's ID in the database
-# Note: if the `result' list is empty (i.e. there are no items for a
-# a given ID), this will throw an Exception!
 
 def getByUserId(user_id):
     if (user_id == ''):
@@ -192,10 +194,7 @@ def getByUserId(user_id):
     else:
         t.commit()
     return results
-# defined by me
-# returns a single item specified by the price in the database
-# Note: if the `result' list is empty (i.e. there are no items for a
-# a given ID), this will throw an Exception!
+
 
 def getByMinPrice(min_price):
     if (min_price == ''):
@@ -214,10 +213,6 @@ def getByMinPrice(min_price):
 
     return results
 
-# defined by me
-# returns a single item specified by the price in the database
-# Note: if the `result' list is empty (i.e. there are no items for a
-# a given ID), this will throw an Exception!
 
 def getByMaxPrice(max_price):
     if (max_price == ''):
@@ -235,6 +230,7 @@ def getByMaxPrice(max_price):
 
     return results
 
+
 def getByStatus(status):
     # TODO: rewrite this method to catch the Exception in case `result' is empty
     if status == "open":
@@ -243,15 +239,48 @@ def getByStatus(status):
         query_string = "select Name from items, currenttime where (currenttime.time > items.ends or items.currently >= items.buy_price)"
     elif status == "notStarted":
         query_string = "select Name from items, currenttime where currenttime.time < items.started"
-    else: 
+    else:
         return False
-   
+
     t = db.transaction()
-    try:       
+    try:
         results = query(query_string, {'Status': status})
     except Exception as e:
         t.rollback()
         print str(e)
     else:
         t.commit()
+    return results
+
+
+def getByCategory(category):
+    if (category == ''):
+        return None
+    # TODO: rewrite this method to catch the Exception in case `result' is empty
+    query_string = "select name from Items, Categories where Categories.ItemID = Items.ItemID AND category LIKE \'%" + category + "%\'"
+    t = db.transaction()
+    try:
+        results = query(query_string)
+    except Exception as e:
+        t.rollback()
+        print str(e)
+    else:
+        t.commit()
+
+    return results
+
+def getByDescription(description):
+    if (description == ''):
+        return None
+    # TODO: rewrite this method to catch the Exception in case `result' is empty
+    query_string = "select name from Items where description LIKE \'%" + description + "%\'"
+    t = db.transaction()
+    try:
+        results = query(query_string)
+    except Exception as e:
+        t.rollback()
+        print str(e)
+    else:
+        t.commit()
+
     return results
