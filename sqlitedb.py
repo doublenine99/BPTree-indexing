@@ -85,15 +85,31 @@ def getItemById(item_id):
         return None
 # TODO: additional methods to interact with your database,
 
+def getBidById(item_id):
+    try:
+        query_string = 'select * from Bids where itemID = $itemID'
+        results = query(query_string, {'itemID': item_id})
+        return results
+    except Exception as e:
+        print(str(e))
+        return None
+
+def getCategoriesById(item_id):
+    try:
+        query_string = 'select * from Categories where itemID = $itemID'
+        results = query(query_string, {'itemID': item_id})
+        return results
+    except Exception as e:
+        print(str(e))
+        return None
 
 def status(item_id):
     currtime = getTime()
-    endTime = query("select ends from Items where itemId = $itemID" ,{'itemID': item_id})
-    buyPrice =query("select Buy_Price from Items where itemId = $itemID", {'itemID': item_id})
-    currentPrice = query("select currently from Items where itemId = $itemID", {'itemID': item_id})
-    startTime = query('select started from Items where itemId = $itemID', {'itemID': item_id} )
-    if (currentPrice >= buyPrice or currtime > endTime):
-        
+    endTime = query("select ends from Items where itemId = $itemID" ,{'itemID': item_id})[0]['Ends']
+    buyPrice =query("select Buy_Price from Items where itemId = $itemID", {'itemID': item_id})[0]["Buy_Price"]
+    currentPrice = query("select currently from Items where itemId = $itemID", {'itemID': item_id})[0]["Currently"]
+    startTime = query('select started from Items where itemId = $itemID', {'itemID': item_id})[0]["Started"]
+    if (currtime > endTime or (buyPrice != None and currentPrice >= buyPrice) ):
         return "closed"
     if (currtime < startTime):
         print "The auction for this item hasn't started yet"
@@ -101,12 +117,15 @@ def status(item_id):
     return "open"
 
 def add_bid(item_id, user_id, price):
+    price = float(price)
     currtime = getTime()
     t = db.transaction()
     try:
         if (status(item_id) == "not started"):
+            print "aaa"
             return False
-        if (status(item_id)):
+        if (status(item_id) == "closed"):
+            print status(item_id)
             return False
     
         # Check if the item_id violates the foreign key constraint
@@ -126,17 +145,22 @@ def add_bid(item_id, user_id, price):
             print("User Name: ", user)
 
         # Check if the user input price is higher than current price
-        currentPrice = getCurrentPrice(item_id)
-        if price <= currentPrice:
+        currentPrice = float(getCurrentPrice(item_id))
+        first_bid = float(getItemById(item_id)["First_Bid"])
+        if  price <= first_bid:
+            print("Invalid input on Amount! must be higher than first bid! \n")
+            print("Current amount: ", currentPrice)
+            return False
+
+        if currentPrice != None and price <= currentPrice:
             print("Invalid input on Amount! must be higher than current amount! \n")
             print("Current amount: ", currentPrice)
             return False
 
         print("Your bid amount: ", price)
         db.insert("Bids", ItemID=item_id, UserID=user_id, Amount=price, Time=currtime)
-        query("update Items set currently = $price where ItemId = $itemID", {'itemID': item_id})
+        db.query("update Items set currently = $price where ItemId = $itemID", {'itemID': item_id, 'price':price})
 
-        # ? need to check current time?
     except Exception as e:
         t.rollback()
         print str(e)
@@ -271,10 +295,10 @@ def getByCategory(category):
     if (category == ''):
         return None
     # TODO: rewrite this method to catch the Exception in case `result' is empty
-    query_string = "select Name, ItemID, currently from Items, Categories where Categories.ItemID = Items.ItemID AND category LIKE \'%" + category + "%\'"
+    query_string ="select Name, Items.ItemID, currently from Items, Categories where Categories.ItemID = Items.ItemID AND category LIKE \'%" + category + "%\'"
     t = db.transaction()
     try:
-        results = query(query_string)
+        results = query(query_string, {'category' :category})
     except Exception as e:
         t.rollback()
         print str(e)
@@ -287,7 +311,7 @@ def getByDescription(description):
     if (description == ''):
         return None
     # TODO: rewrite this method to catch the Exception in case `result' is empty
-    query_string = "select nameName, ItemID, currently from Items where description LIKE \'%" + description + "%\'"
+    query_string = "select Name, ItemID, currently from Items where description LIKE \'%" + description + "%\'"
     t = db.transaction()
     try:
         results = query(query_string)
