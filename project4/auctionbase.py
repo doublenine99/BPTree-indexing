@@ -108,7 +108,13 @@ class item_info:
         category = sqlitedb.getCategoriesById(item_id)
         if status == "closed":
             closed = True
-        return render_template('item_info.html', title=title, desc=desc, seller=seller, start_time=start_time, end_time=end_time, currently=currently, bid_result=bid_result, status=status, closed=closed, category=category, num_bids=num_bids, first_bid=first_bid)
+        
+        winner = "No winner"
+        print winner
+        if bid_result != None:
+            if len(bid_result) != 0:
+                winner = bid_result[len(bid_result) - 1]["UserID"]
+        return render_template('item_info.html', title=title, desc=desc, seller=seller, start_time=start_time, end_time=end_time, currently=currently, bid_result=bid_result, status=status, closed=closed, category=category, num_bids=num_bids, first_bid=first_bid, winner=winner)
 
 
 class curr_time:
